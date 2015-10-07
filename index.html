@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.counties {
+  fill: none;
+}
+
+.states {
+  fill: none;
+  stroke: #fff;
+  stroke-linejoin: round;
+}
+
+.q0-5 { fill:rgba(255,214,179,1); }
+.q1-5 { fill:rgba(255,160,77,1); }
+.q2-5 { fill:rgba(255,151,82,1); }
+.q3-5 { fill:rgba(235,0,0,1); }
+.q4-5 { fill:rgba(184,0,0,1); }
+.q5-5 { fill:rgba(143,0,0,1); }
+
+</style>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.19/topojson.min.js"></script>
+<script>
+
+var width = 960,
+    height = 600;
+
+var rateById = d3.map();
+
+var quantize = d3.scale.quantize()
+    .domain([0, 125])
+    .range(d3.range(5).map(function(i) { return "q" + i + "-5"; }));
+
+var projection = d3.geo.albersUsa()
+    .scale(1280)
+    .translate([width / 2, height / 2]);
+
+var path = d3.geo.path()
+    .projection(projection);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+queue()
+    .defer(d3.json, "us.json")
+    .defer(d3.tsv, "drought.tsv", function(d) { rateById.set(d.FIPS, + d.D9); })
+    .await(ready);
+
+function ready(error, us) {
+  if (error) throw error;
+
+  svg.append("g")
+      .attr("class", "counties")
+    .selectAll("path")
+      .data(topojson.feature(us, us.objects.counties).features)
+    .enter().append("path")
+      .attr("class", function(d) { return quantize(rateById.get(d.id)); })
+      .attr("d", path);
+
+  svg.append("path")
+      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
+      .attr("class", "states")
+      .attr("d", path);
+}
+
+d3.select(self.frameElement).style("height", height + "px");
+
+</script>
+</body>
+</html>
